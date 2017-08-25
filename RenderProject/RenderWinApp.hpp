@@ -1,13 +1,25 @@
 #pragma once
 #include "Windows.h"
+
+#include "egl\egl.h"
+#include "gles2\gl2.h"
+
 class RenderWinApp
 {
 protected:
 	HWND _hWnd;
 	HINSTANCE _hInst;
+
+	int _width;
+	int _height;
+
+	EGLConfig _config;
+	EGLSurface _surface;
+	EGLContext _context;
+	EGLDisplay _display;
+
 public:
-	RenderWinApp(HINSTANCE hInstance):_hInst(hInstance) {
-		//生成一个窗口类
+	RenderWinApp(HINSTANCE hInstance) :_hInst(hInstance) {
 		WNDCLASSW wndClass;
 		memset(&wndClass, 0, sizeof(wndClass));
 		wndClass.style = CS_VREDRAW | CS_HREDRAW | CS_OWNDC;
@@ -24,8 +36,61 @@ public:
 		UnregisterClass((LPCWSTR)("RenderWinApp"), _hInst);
 	}
 
+	bool initOpenGLES20() {
+		const EGLint attribs[]{
+			EGL_SURFACE_TYPE,EGL_WINDOW_BIT,
+			EGL_DEPTH_SIZE,8,
+			EGL_GREEN_SIZE,8,
+			EGL_RED_SIZE,8,
+			EGL_DEPTH_SIZE,24,
+			EGL_NONE
+		};
+
+		EGLint format(0);
+		EGLint numConfigs(0);
+		EGLint major;
+		EGLint minor;
+
+		_display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+		eglInitialize(_display, &major, &minor);
+		eglChooseConfig(_display, attribs, &_config, 1, &numConfigs);
+
+		eglGetConfigAttrib(_display, _config, EGL_NATIVE_VISUAL_ID, &format);
+
+		_surface = eglCreateWindowSurface(_display, _config, _hWnd, NULL);
+
+		EGLint attr[] = { EGL_CONTEXT_CLIENT_VERSION,2,EGL_NONE,EGL_NONE };
+
+		_context = eglCreateContext(_display, _config, 0, attr);
+
+		if (eglMakeCurrent(_display, _surface, _surface, _context) == EGL_FALSE) {
+			return false;
+		}
+
+		eglQuerySurface(_display, _surface, EGL_WIDTH, &_width);
+		eglQuerySurface(_display, _surface, EGL_HEIGHT, &_height);
+
+		return true;
+	}
+
+	void destroyOpenGLES20() {
+		if (_display != EGL_NO_DISPLAY) {
+			eglMakeCurrent(_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+			if (_context != EGL_NO_CONTEXT) {
+				eglDestroyContext(_display, _context);
+			}
+			if (_surface != EGL_NO_SURFACE) {
+				eglDestroySurface(_display, _surface);
+			}
+			eglTerminate(_display);
+		}
+		_display = EGL_NO_DISPLAY;
+		_context = EGL_NO_CONTEXT;
+		_surface = EGL_NO_SURFACE;
+	}
+
 	static LRESULT CALLBACK wndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-		
+
 		RenderWinApp* pThis = (RenderWinApp*)GetWindowLong(hWnd, GWL_USERDATA);
 		if (pThis) {
 			return pThis->onEvent(hWnd, msg, wParam, lParam);
@@ -38,7 +103,7 @@ public:
 	}
 
 	LRESULT CALLBACK onEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-		switch(msg)
+		switch (msg)
 		{
 		case WM_DESTROY:
 		case WM_CLOSE:
@@ -63,7 +128,7 @@ public:
 				break;
 			}
 		}
-			break;
+						 break;
 		case WM_KEYUP:
 			break;
 		default:
@@ -72,15 +137,30 @@ public:
 		}
 		return S_OK;
 	}
-	int main(int width, int hight) {
-		//2创建窗口
-		_hWnd = CreateWindow((LPCWSTR)("RenderWinApp"), (LPCWSTR)("RenderWinApp"), WS_OVERLAPPEDWINDOW, 0, 0, width, hight, 0, 0, _hInst, this);
-		if (_hWnd == 0) return 0;
-		//3更新显示窗口
-		UpdateWindow(_hWnd);
-		//4显示窗口
-		ShowWindow(_hWnd, SW_MAXIMIZE);
-		//5消息循环
+
+	void render() {
+
+		glClearColor(1, 0, 0, 1);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glViewport(0, 0, _width, _height);
+
+	}
+
+	int main(int width, int height) {
+		_width = width;
+		_height = height;
+
+		_hWnd = CreateWindow((LPCWSTR)("RenderWinApp"), (LPCWSTR)("RenderWinApp"), WS_OVERLAPPEDWINDOW, 0, 0, width, height, 0, 0, _hInst, this);
+		if (_hWnd == 0) {
+			return -1;
+		}
+
+		ShowWindow(_hWnd, SW_SHOW);
+
+		if (!initOpenGLES20()) {
+			return false;
+		}
+
 		MSG msg = { 0 };
 		while (msg.message != WM_QUIT)
 		{
@@ -93,9 +173,11 @@ public:
 				DispatchMessage(&msg);
 			}
 			else {
-				Sleep(1);
+				render();
+				eglSwapBuffers(_display, _surface);
 			}
 		}
+		destroyOpenGLES20();
 		return 0;
 	}
 
