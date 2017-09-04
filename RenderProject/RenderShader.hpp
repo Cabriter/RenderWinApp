@@ -44,7 +44,7 @@ public:
 			}
 			if (fragment) {
 				_fragment._shaderId = glCreateShader(GL_FRAGMENT_SHADER);
-				glShaderSource(_fragment._shaderId, 1, &vertex, 0);
+				glShaderSource(_fragment._shaderId, 1, &fragment, 0);
 				glCompileShader(_fragment._shaderId);
 
 				GLint complieStatus;
@@ -117,11 +117,25 @@ public:
 
 	virtual bool initialize() {
 		const char* vs = {
+			"precision lowp float;"
+			"uniform mat4 _MVP;"
+			"attribute vec2 _position;"
 
+			"void main()"
+			"{"
+			"	vec4	pos = vec4(_position,0,1);"
+			"	gl_Position = _MVP * pos;"
+			"}"
 		};
 
 		const char * ps = {
+			"precision lowp float;"
+			"uniform vec4 _color;"
 
+			"void main()"
+			"{"
+			"	gl_FragColor = _color;"
+			"}"
 		};
 
 		bool res = createProgram(vs, ps);

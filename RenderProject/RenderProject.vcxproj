@@ -161,6 +161,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CELLMath.hpp" />
     <ClInclude Include="RenderShader.hpp" />
     <ClInclude Include="RenderWinApp.hpp" />
   </ItemGroup>

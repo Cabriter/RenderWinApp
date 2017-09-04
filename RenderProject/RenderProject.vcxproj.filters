@@ -26,5 +26,8 @@
     <ClInclude Include="RenderShader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="CELLMath.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

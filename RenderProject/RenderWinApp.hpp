@@ -1,6 +1,9 @@
 #pragma once
 #include "Windows.h"
 
+#include "CELLMath.hpp"
+#include "RenderShader.hpp"
+
 #include "egl\egl.h"
 #include "gles2\gl2.h"
 
@@ -17,6 +20,8 @@ protected:
 	EGLSurface _surface;
 	EGLContext _context;
 	EGLDisplay _display;
+
+	PROGRAM_P2_C4 _shader;
 
 public:
 	RenderWinApp(HINSTANCE hInstance) :_hInst(hInstance) {
@@ -140,10 +145,29 @@ public:
 
 	void render() {
 
-		glClearColor(1, 0, 0, 1);
+		//glClearColor(0, 0, 1, 1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glViewport(0, 0, _width, _height);
 
+		CELL::matrix4 screenProj = CELL::ortho<float>(0, float(_width), float(_height), 0, -100.0f, 100);
+		_shader.begin(); 
+		{
+			float x = 100;
+			float y = 100;
+			float w = 100;
+			float h = 100;
+			CELL::float2 pos[] = {
+				CELL::float2(x,y),
+				CELL::float2(x + w,y),
+				CELL::float2(x,y + h),
+				CELL::float2(x + w,y + h)
+			};
+			glUniformMatrix4fv(_shader._MVP, 1, false, screenProj.data());
+			glUniform4f(_shader._color, 1, 0, 0, 1);
+			glVertexAttribPointer(_shader._position, 2, GL_FLOAT, false, sizeof(CELL::float2), pos);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
+		_shader.end();
 	}
 
 	int main(int width, int height) {
@@ -160,7 +184,7 @@ public:
 		if (!initOpenGLES20()) {
 			return false;
 		}
-
+		_shader.initialize();
 		MSG msg = { 0 };
 		while (msg.message != WM_QUIT)
 		{
